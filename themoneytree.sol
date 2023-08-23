@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-// import "@chainlink/contracts/src/v0.8/vrf/VRFV2WrapperConsumerBase.sol";
+import "@chainlink/contracts/src/v0.8/vrf/VRFV2WrapperConsumerBase.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
-import "../lib/chainlink/contracts/src/v0.8/vrf/VRFV2WrapperConsumerBase.sol";
 
 
 contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, Ownable {
@@ -184,7 +183,7 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
     }
 
     function setPoolStartTime(uint256 _poolStartTime) external onlyOwner returns (bool) {
-        // if (_poolStartTime < block.timestamp) revert MoneyTreeInvalidStartTime(_poolStartTime);
+        if (_poolStartTime < block.timestamp) revert MoneyTreeInvalidStartTime(_poolStartTime);
         poolStartTime = _poolStartTime;
         return true;
     }
@@ -755,29 +754,37 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
         return _winnerList.length();
     }
 
+    function getWinnerList(uint256 offset, uint256 limit) external view returns (address[] memory output) {
+        uint256 _winnerListLength = _winnerList.length();
+        if (offset >= _winnerListLength) return new address[](0);
+        uint256 to = offset + limit;
+        if (_winnerListLength < to) to = _winnerListLength;
+        output = new address[](to - offset);
+        for (uint256 i = 0; i < output.length; i++) output[i] = _winnerList.at(offset + i);
+    }
 
     function getUserInfo(address _user)
-        external view returns (
-            Group group,
-            bool deposited,
-            uint256 totalReceived,
-            uint256 availableToClaim,
-            uint256 numberOfReferrals,
-            uint256 lastEpochAddReferrals,
-            bool winner
-        )
+    external view returns (
+        Group group,
+        bool deposited,
+        uint256 totalReceived,
+        uint256 availableToClaim,
+        uint256 numberOfReferrals,
+        uint256 lastEpochAddReferrals,
+        bool winner
+    )
     {
         if (!userInfo[_user].deposited) revert MoneyTreeInvalidUserAddress(_user);
 
         UserInfo memory info = userInfo[_user];
         return (
-            info.group,
-            info.deposited,
-            info.totalReceived,
-            info.availableToClaim,
-            info.numberOfReferrals,
-            info.lastEpochAddReferrals,
-            info.winner
+        info.group,
+        info.deposited,
+        info.totalReceived,
+        info.availableToClaim,
+        info.numberOfReferrals,
+        info.lastEpochAddReferrals,
+        info.winner
         );
     }
 
@@ -846,6 +853,41 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
         }
     }
 
+    function getStakersList(Group _group, uint256 offset, uint256 limit) public view returns (address[] memory output) {
+        uint256 _stakersListLength;
+        uint256 to;
+        if (_group == Group.POOL_A) {
+            _stakersListLength = _stakersPoolA.length();
+            if (offset >= _stakersListLength) return new address[](0);
+            to = offset + limit;
+            if (_stakersListLength < to) to = _stakersListLength;
+            output = new address[](to - offset);
+            for (uint256 i = 0; i < output.length; i++) output[i] = _stakersPoolA.at(offset + i);
+        } else if (_group == Group.POOL_B) {
+            _stakersListLength = _stakersPoolB.length();
+            if (offset >= _stakersListLength) return new address[](0);
+            to = offset + limit;
+            if (_stakersListLength < to) to = _stakersListLength;
+            output = new address[](to - offset);
+            for (uint256 i = 0; i < output.length; i++) output[i] = _stakersPoolB.at(offset + i);
+        } else if (_group == Group.POOL_C) {
+            _stakersListLength = _stakersPoolC.length();
+            if (offset >= _stakersListLength) return new address[](0);
+            to = offset + limit;
+            if (_stakersListLength < to) to = _stakersListLength;
+            output = new address[](to - offset);
+            for (uint256 i = 0; i < output.length; i++) output[i] = _stakersPoolC.at(offset + i);
+        } else if (_group == Group.TOTAL) {
+            _stakersListLength = _stakersTotal.length();
+            if (offset >= _stakersListLength) return new address[](0);
+            to = offset + limit;
+            if (_stakersListLength < to) to = _stakersListLength;
+            output = new address[](to - offset);
+            for (uint256 i = 0; i < output.length; i++) output[i] = _stakersTotal.at(offset + i);
+        } else {
+            revert MoneyTreeInvalidGroup();
+        }
+    }
 
     function getEpochUsersByGroup(Group _group) public view returns (address[] memory) {
         uint256 _currentEpoch = getEpoch(block.timestamp);
