@@ -26,6 +26,7 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
         uint256 numberOfReferrals;
         uint256 lastEpochAddReferrals;
         bool winner;
+        uint256 depositTimestamp;
     }
 
     struct GroupInfo {
@@ -232,6 +233,7 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
 
         userInfo[_sender].group = _group;
         userInfo[_sender].deposited = true;
+        userInfo[_sender].depositTimestamp = block.timestamp;
 
         addUserToGroupCurrentEpochList(_sender);
 
@@ -264,6 +266,7 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
                     userInfo[_referrer].numberOfReferrals = 0;
                     userInfo[_referrer].lastEpochAddReferrals = 0;
                     userInfo[_referrer].winner = false;
+                    userInfo[_referrer].depositTimestamp = 0;
 
                     _winnerList.add(_referrer);
                     winnerGroup[_referrer] = _group;
@@ -425,6 +428,7 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
                         userInfo[v.recipient].numberOfReferrals = 0;
                         userInfo[v.recipient].lastEpochAddReferrals = 0;
                         userInfo[v.recipient].winner = false;
+                        userInfo[v.recipient].depositTimestamp = 0;
 
                         _winnerList.add(v.recipient);
                         winnerGroup[v.recipient] = Group.POOL_A;
@@ -528,6 +532,7 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
                         userInfo[v.recipient].numberOfReferrals = 0;
                         userInfo[v.recipient].lastEpochAddReferrals = 0;
                         userInfo[v.recipient].winner = false;
+                        userInfo[v.recipient].depositTimestamp = 0;
 
                         _winnerList.add(v.recipient);
                         winnerGroup[v.recipient] = Group.POOL_B;
@@ -631,6 +636,7 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
                         userInfo[v.recipient].numberOfReferrals = 0;
                         userInfo[v.recipient].lastEpochAddReferrals = 0;
                         userInfo[v.recipient].winner = false;
+                        userInfo[v.recipient].depositTimestamp = 0;
 
                         _winnerList.add(v.recipient);
                         winnerGroup[v.recipient] = Group.POOL_C;
@@ -713,6 +719,7 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
                 userInfo[v.winnerAddress].numberOfReferrals = 0;
                 userInfo[v.winnerAddress].lastEpochAddReferrals = 0;
                 userInfo[v.winnerAddress].winner = false;
+                userInfo[v.winnerAddress].depositTimestamp = 0;
 
                 _winnerList.add(v.winnerAddress);
                 winnerGroup[v.winnerAddress] = _winnerGroup;
@@ -771,7 +778,8 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
         uint256 availableToClaim,
         uint256 numberOfReferrals,
         uint256 lastEpochAddReferrals,
-        bool winner
+        bool winner,
+        uint256 depositTimestamp
     )
     {
         if (!userInfo[_user].deposited) revert MoneyTreeInvalidUserAddress(_user);
@@ -784,7 +792,8 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
         info.availableToClaim,
         info.numberOfReferrals,
         info.lastEpochAddReferrals,
-        info.winner
+        info.winner,
+        info.depositTimestamp
         );
     }
 
@@ -959,6 +968,7 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
             userInfo[_user].numberOfReferrals = 0;
             userInfo[_user].lastEpochAddReferrals = 0;
             userInfo[_user].winner = false;
+            userInfo[_user].depositTimestamp = 0;
 
             _winnerList.add(_user);
             winnerGroup[_user] = userGroup;
