@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "@chainlink/contracts/src/v0.8/vrf/VRFV2WrapperConsumerBase.sol";
+import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -78,6 +78,8 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
     uint256 private distributeAmountPoolCStorage;
     uint256 private distributeAmountLotteryStorage;
 
+    uint256 private previousBlockNumber;
+
     uint256 private nonce;
 
     address public linkToken;
@@ -147,6 +149,7 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
     error MoneyTreeWindowIsOpen();
     error MoneyTreeRequestNotFulfilled(uint256 request);
     error MoneyTreeStepNotReadyForExecute(uint256 step);
+    error MoneyTreeWrongBlock();
 
 
     modifier onlyKeeper(){
@@ -305,6 +308,7 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
 
 
     function requestRandomWords() external onlyKeeper returns (uint256 requestId) {
+        previousBlockNumber = block.number;
         requestId = requestRandomness(
             callbackGasLimit,
             requestConfirmations,
@@ -328,10 +332,12 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
         if (!fulfilled) revert MoneyTreeRequestNotFulfilled(_requestId);
 
         uint256 currentEpoch = getEpoch(block.timestamp);
+        if (block.number == previousBlockNumber) revert MoneyTreeWrongBlock();
         if (epochStepDone[currentEpoch][1]) revert MoneyTreeStepNotReadyForExecute(1);
         if (isTimeInWindow(block.timestamp)) revert MoneyTreeWindowIsOpen();
         if (isEpochDistributed[currentEpoch] == true) revert MoneyTreeEpochIsDistributed();
         if (epochDepositAmount[currentEpoch] == 0) revert MoneyTreeZeroDistributedAmount();
+        previousBlockNumber = block.number;
 
         Values memory v;
         uint256[] memory groupAmounts = calculateGroupDistribution(epochDepositAmount[currentEpoch]);
@@ -350,6 +356,7 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
             if (i == 10) {
                 v.recipient = _dev.at(i);
                 IERC20(token).safeTransfer(v.recipient, v.distributeAmountDev - v.devPaymentAmount * 10);
+                emit DevBonusPaid(v.recipient, v.devPaymentAmount);
                 break;
             }
             v.recipient = _dev.at(i);
@@ -372,7 +379,9 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
     function distrubuteStep02() external onlyKeeper returns (bool) {
         uint256 _requestId = lastRequestId;
         uint256 currentEpoch = getEpoch(block.timestamp);
+        if (block.number == previousBlockNumber) revert MoneyTreeWrongBlock();
         if (!epochStepDone[currentEpoch][1] || epochStepDone[currentEpoch][2]) revert MoneyTreeStepNotReadyForExecute(2);
+        previousBlockNumber = block.number;
 
         Values memory v;
 
@@ -476,7 +485,9 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
     function distrubuteStep03() external onlyKeeper returns (bool) {
         uint256 _requestId = lastRequestId;
         uint256 currentEpoch = getEpoch(block.timestamp);
+        if (block.number == previousBlockNumber) revert MoneyTreeWrongBlock();
         if (!epochStepDone[currentEpoch][2] || epochStepDone[currentEpoch][3]) revert MoneyTreeStepNotReadyForExecute(3);
+        previousBlockNumber = block.number;
 
         Values memory v;
 
@@ -581,7 +592,9 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
     function distrubuteStep04() external onlyKeeper returns (bool) {
         uint256 _requestId = lastRequestId;
         uint256 currentEpoch = getEpoch(block.timestamp);
+        if (block.number == previousBlockNumber) revert MoneyTreeWrongBlock();
         if (!epochStepDone[currentEpoch][3] || epochStepDone[currentEpoch][4]) revert MoneyTreeStepNotReadyForExecute(4);
+        previousBlockNumber = block.number;
 
         Values memory v;
 
@@ -685,7 +698,9 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
     function distrubuteStep05() external onlyKeeper returns (uint256) {
         uint256 _requestId = lastRequestId;
         uint256 currentEpoch = getEpoch(block.timestamp);
+        if (block.number == previousBlockNumber) revert MoneyTreeWrongBlock();
         if (!epochStepDone[currentEpoch][4] || epochStepDone[currentEpoch][5]) revert MoneyTreeStepNotReadyForExecute(5);
+        previousBlockNumber = block.number;
 
         Values memory v;
 
