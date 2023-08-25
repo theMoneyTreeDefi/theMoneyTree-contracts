@@ -88,10 +88,10 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
     uint256[] public requestIds;
     uint256 public lastRequestId;
 
-    uint32 callbackGasLimit = 500000;
-    uint16 requestConfirmations = 3;
+    uint32 private callbackGasLimit = 500000;
+    uint16 private requestConfirmations = 3;
 
-    uint32 numWords = 4;
+    uint32 private numWords = 4;
 
     EnumerableSet.AddressSet private _dev;
     EnumerableSet.AddressSet private _stakersPoolA;
@@ -144,7 +144,7 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
     error MoneyTreeInvalidGroupsParameters();
     error MoneyTreeZeroDistributedAmount();
     error MoneyTreeEpochIsDistributed();
-    error MoneyTreeWindowwIsOpen();
+    error MoneyTreeWindowIsOpen();
     error MoneyTreeRequestNotFulfilled(uint256 request);
     error MoneyTreeStepNotReadyForExecute(uint256 step);
 
@@ -177,6 +177,7 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
             if (_devs[i] == address(0)) revert MoneyTreeInvalidAddress(address(0));
             _dev.add(_devs[i]);
         }
+        if (_dev.length() != 11) revert MoneyTreeInvalidDevsLength(len);
 
         tradingAccount = _tradingAccount;
 
@@ -193,6 +194,7 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
         if (_groups.length != _infos.length) revert MoneyTreeInvalidGroupsParameters();
         uint256 sum;
         for (uint256 i = 0; i < _groups.length; i++) {
+            if (groupInfo[_groups[i]].distributionPercent != 0) revert MoneyTreeInvalidGroupsParameters();
             groupInfo[_groups[i]].depositSize = _infos[i].depositSize;
             groupInfo[_groups[i]].maxPayout = _infos[i].maxPayout;
             groupInfo[_groups[i]].distributionPercent = _infos[i].distributionPercent;
@@ -320,14 +322,14 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
     }
 
 
-    function distrubuteStep01(uint256 _requestId) external onlyKeeper returns (bool) {
-
+    function distrubuteStep01() external onlyKeeper returns (bool) {
+        uint256 _requestId = lastRequestId;
         (, bool fulfilled,) = getRequestStatus(_requestId);
         if (!fulfilled) revert MoneyTreeRequestNotFulfilled(_requestId);
 
         uint256 currentEpoch = getEpoch(block.timestamp);
         if (epochStepDone[currentEpoch][1]) revert MoneyTreeStepNotReadyForExecute(1);
-        if (isTimeInWindow(block.timestamp)) revert MoneyTreeWindowwIsOpen();
+        if (isTimeInWindow(block.timestamp)) revert MoneyTreeWindowIsOpen();
         if (isEpochDistributed[currentEpoch] == true) revert MoneyTreeEpochIsDistributed();
         if (epochDepositAmount[currentEpoch] == 0) revert MoneyTreeZeroDistributedAmount();
 
@@ -367,8 +369,8 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
     }
 
 
-    function distrubuteStep02(uint256 _requestId) external onlyKeeper returns (bool) {
-
+    function distrubuteStep02() external onlyKeeper returns (bool) {
+        uint256 _requestId = lastRequestId;
         uint256 currentEpoch = getEpoch(block.timestamp);
         if (!epochStepDone[currentEpoch][1] || epochStepDone[currentEpoch][2]) revert MoneyTreeStepNotReadyForExecute(2);
 
@@ -471,8 +473,8 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
     }
 
 
-    function distrubuteStep03(uint256 _requestId) external onlyKeeper returns (bool) {
-
+    function distrubuteStep03() external onlyKeeper returns (bool) {
+        uint256 _requestId = lastRequestId;
         uint256 currentEpoch = getEpoch(block.timestamp);
         if (!epochStepDone[currentEpoch][2] || epochStepDone[currentEpoch][3]) revert MoneyTreeStepNotReadyForExecute(3);
 
@@ -576,8 +578,8 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
     }
 
 
-    function distrubuteStep04(uint256 _requestId) external onlyKeeper returns (bool) {
-
+    function distrubuteStep04() external onlyKeeper returns (bool) {
+        uint256 _requestId = lastRequestId;
         uint256 currentEpoch = getEpoch(block.timestamp);
         if (!epochStepDone[currentEpoch][3] || epochStepDone[currentEpoch][4]) revert MoneyTreeStepNotReadyForExecute(4);
 
@@ -680,8 +682,8 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
     }
 
 
-    function distrubuteStep05(uint256 _requestId) external onlyKeeper returns (uint256) {
-
+    function distrubuteStep05() external onlyKeeper returns (uint256) {
+        uint256 _requestId = lastRequestId;
         uint256 currentEpoch = getEpoch(block.timestamp);
         if (!epochStepDone[currentEpoch][4] || epochStepDone[currentEpoch][5]) revert MoneyTreeStepNotReadyForExecute(5);
 
@@ -1037,7 +1039,7 @@ contract MoneyTree is VRFV2WrapperConsumerBase, ReentrancyGuard, Initializable, 
     function processRandomness(uint256 _requestId, uint256 _k, uint256 _size) private returns (uint256 _randomness) {
         (,,uint256[] memory _randomWords) = getRequestStatus(_requestId);
         nonce++;
-        _randomness = uint256(keccak256(abi.encode(_randomWords[_k], blockhash(block.number), _size, nonce)));
+        _randomness = uint256(keccak256(abi.encode(_randomWords[_k], blockhash(block.number - 1), _size, nonce)));
         _randomness = _randomness % _size;
     }
 
